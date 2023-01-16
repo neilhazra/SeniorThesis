@@ -1,8 +1,3 @@
-###
-### ESTIMATE MUTUAL INFORMATION WITH NON INTERACTING PARTICLES
-### SHOULD BE RANDOM WALK/ DIFFUSION
-### BRUTE FORCE SOLUTION
-###
 import math
 
 import torch
@@ -20,19 +15,16 @@ class VIBModel(nn.Module):
 
     def forward(self, x, y, beta):
         Z = self.encoder.get_distribution(x)
-        #print(Z.mean[0], torch.det(Z.covariance_matrix[0]))
-        print(x[0])
-        print(y[0])
-        losses = -self.decoder.log_probs(Z.rsample(), y) #+ \
-                 #beta * torch.distributions.kl.kl_divergence(Z, self.marginal_embedding.get_distribution())
+        losses = -self.decoder.log_probs(Z.rsample(), y) + \
+                 beta * torch.distributions.kl.kl_divergence(Z, self.marginal_embedding.get_distribution())
         return losses.mean()
 
-
-model = VIBModel(8, 8, 8)
+inverse_density = 2
+state_space_size = 8
+model = VIBModel(state_space_size, 8, 8)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
 for i in range(3000):
-    gen = SEPGenerator(space_size=8, num_samples=100, time_period=0)
+    gen = SEPGenerator(space_size=8, num_samples=100, time_period=0.125, inverse_density=inverse_density)
     initial_state = gen.data.clone()
     gen.run()
     final_state = gen.data.clone()
@@ -41,5 +33,4 @@ for i in range(3000):
     loss = model(initial_state.float(), final_state.float(), 0)
     loss.backward()
     optimizer.step()
-    print(i, -loss.detach().cpu().item() + math.log(math.comb(8,4)))
-    #WOOHOO it works!!
+    print(i, -loss.detach().cpu().item() + math.log(math.comb(state_space_size,state_space_size // inverse_density)))

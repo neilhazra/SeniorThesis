@@ -1,7 +1,6 @@
 import torch
 import torch.nn
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class StochasticEncoder(nn.Module):
@@ -18,6 +17,7 @@ class StochasticEncoder(nn.Module):
             nn.Linear(self.hidden, self.hidden),
             nn.ReLU(),
         )
+
         # predict mean value of multivariate gaussian distribution
         self.mean_network = nn.Sequential(
             nn.Linear(self.hidden, out_dim)
@@ -87,7 +87,7 @@ class VariationalDecoder2(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 128),
             nn.ReLU(),
-            nn.Linear(128, 256),
+            nn.Linear(128, self.out_dim),
             nn.LogSoftmax()
         )
 
@@ -106,11 +106,11 @@ class VariationalEmbeddingDynamics(nn.Module):
         self.out_dim = embedding_size
         self.convolutional_network = nn.Sequential(
             nn.Linear(self.in_dim, self.hidden),
-            nn.SiLU(),
+            nn.ReLU(),
             nn.Linear(self.hidden, self.hidden),
-            nn.SiLU(),
+            nn.ReLU(),
             nn.Linear(self.hidden, self.hidden),
-            nn.SiLU(),
+            nn.ReLU(),
         )
         # predict mean value of multivariate gaussian distribution
         self.mean_network = nn.Sequential(
@@ -127,7 +127,7 @@ class VariationalEmbeddingDynamics(nn.Module):
 
     def get_distribution(self, w):
         parameters = self.convolutional_network(w)
-        means = self.mean_network(parameters)
+        means = w #self.mean_network(parameters)
         cholesky_lower_triangular = torch.tril(
             self.cholesky_nondiag_sigmas_network(parameters).view(-1, self.out_dim, self.out_dim), diagonal=-1)
 
@@ -139,6 +139,7 @@ class VariationalEmbeddingDynamics(nn.Module):
 
     def get_log_prob(self, w, z):
         conditional_distribution = self.get_distribution(w)
+        print(torch.det(conditional_distribution.covariance_matrix).mean())
         return conditional_distribution.log_prob(z)
 
 

@@ -9,11 +9,12 @@ class SEPGenerator:
     # number of samples is how many processes we want to simulate in parallel (torch optimized)
     # time period is the number of seconds to run the SEP
     # right probability is probability a particle jumps to the right
-    def __init__(self, space_size=250, num_samples=500, time_period=10, right_probability=0.5):
+    def __init__(self, space_size=250, num_samples=500, time_period=10, right_probability=0.5, inverse_density = 2):
         self.right_probability = right_probability
         self.space_size = space_size  # this is the size of the grid
         self.num_samples = num_samples  # number of games we are simulating at once  (i.e batch size)
         self.time_period = time_period  # number of total jumps by all particles
+        self.inverse_density = inverse_density
 
         # all the data for the dataset (# of bits == samples * space size
         self.data = torch.zeros((self.num_samples, self.space_size), dtype=torch.bool)
@@ -36,11 +37,10 @@ class SEPGenerator:
     def initializer(self):
         self.data[:, self.space_size // 2:] = True
 
-    #this might be too random
     def random_initializer(self):
         x = np.arange(self.space_size)
         rng = np.random.default_rng()
-        perms = rng.permuted(np.tile(x, self.num_samples).reshape(self.num_samples, x.size), axis=1)[:, :self.space_size//2]
+        perms = rng.permuted(np.tile(x, self.num_samples).reshape(self.num_samples, x.size), axis=1)[:, :self.space_size//self.inverse_density]
         self.data[np.arange(self.num_samples).reshape(self.num_samples, 1), perms] = True
 
     def restart_time(self):
