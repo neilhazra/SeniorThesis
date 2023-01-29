@@ -19,16 +19,16 @@ class SEPGenerator:
         # all the data for the dataset (# of bits == samples * space size
         self.data = torch.zeros((self.num_samples, self.space_size), dtype=torch.bool)
 
-        self.random_initializer()
+        self.semi_random_initializer()
+
         #self.initializer()  # use a  simple initializers that initializes all the particles on one side
 
         self.num_particles = torch.sum(self.data, dim=-1, keepdim=True)  # number of particles in each sample
 
         # use fact that minimum of n mean 1 exponentials is a mean n exponential
         # this is the property behind poisson superposition
-        self.exponential = torch.distributions.exponential.Exponential(self.num_particles[0].squeeze().float())
-        self.cumulative_time = torch.zeros_like(self.exponential.sample(sample_shape=torch.Size([self.num_samples])))
-
+        self.exponential = torch.distributions.exponential.Exponential(self.num_particles.float(), validate_args=False)
+        self.cumulative_time = torch.zeros_like(self.exponential.sample())
         # using a bernoulli distribution to generate the jump directions
         self.right_jump = torch.distributions.bernoulli.Bernoulli(probs=right_probability)
 
@@ -37,26 +37,31 @@ class SEPGenerator:
     def initializer(self):
         self.data[:, self.space_size // 2:] = True
 
-    def random_initializer(self):
+    def semi_random_initializer(self):
         x = np.arange(self.space_size)
         rng = np.random.default_rng()
         perms = rng.permuted(np.tile(x, self.num_samples).reshape(self.num_samples, x.size), axis=1)[:, :self.space_size//self.inverse_density]
         self.data[np.arange(self.num_samples).reshape(self.num_samples, 1), perms] = True
 
+    def random_initializer(self):
+        self.data = torch.rand_like(self.data, dtype=torch.float) < 1/self.inverse_density
+
+
     def restart_time(self):
-        self.cumulative_time = torch.zeros_like(self.exponential.sample(sample_shape=torch.Size([self.num_samples])))
+        self.cumulative_time = torch.zeros_like(self.exponential.sample())
 
     def increment_time(self, time):
         self.time_period += time
 
     def step(self):
-        new_wait_times = self.exponential.sample(sample_shape=torch.Size([self.num_samples]))
+        new_wait_times = self.exponential.sample()
         self.cumulative_time += new_wait_times
         # mask out the processes that are done updating
         running_samples_indices = torch.nonzero(self.cumulative_time <= self.time_period).squeeze()
         hot_particles = torch.distributions.categorical.Categorical(probs=self.data.float() / self.num_particles)
-        initial_indices = hot_particles.sample()
 
+        #todo watch out for nans
+        initial_indices = hot_particles.sample()
         right_left_jump = (self.right_jump.sample(sample_shape=initial_indices.shape) * 2 - 1).to(torch.int64)
 
         # we want translational symmetry
