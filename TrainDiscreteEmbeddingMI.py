@@ -90,7 +90,7 @@ def run_dim_red_process(state_space, inverse_density, embedding_space_size, time
 
 
 if __name__ == '__main__':
-    experiments = [(32, 4, 32, 0.001)]
+    experiments = [(8, 4, 8, 0.001)]
     results = []
     for i, params in enumerate(experiments):
         print('Running Experiment', i)

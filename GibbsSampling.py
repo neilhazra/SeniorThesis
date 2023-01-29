@@ -14,9 +14,9 @@ class BatchedConditionalGibbsSampler(nn.Module):
         self.num_samples = num_samples
 
         # buffers allow for automatic movement onto the GPU
-        self.register_buffer('initial_guess', (torch.rand(self.num_samples, self.batch_size, self.dim) < 0.25).float())
-        self.register_buffer('zeros', torch.zeros(self.num_samples, self.batch_size))
-        self.register_buffer('ones', torch.ones(self.num_samples, self.batch_size))
+        self.register_buffer('initial_guess', (torch.rand(self.num_samples, self.batch_size, self.dim) < 0.25).float(), persistent=False)
+        self.register_buffer('zeros', torch.zeros(self.num_samples, self.batch_size), persistent=False)
+        self.register_buffer('ones', torch.ones(self.num_samples, self.batch_size), persistent=False)
 
     def estimate_conditional_expected_value(self, z, model_func=None):
         with torch.no_grad():
